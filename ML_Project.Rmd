@@ -1,0 +1,84 @@
+# Predicting how well weight lifting exercise is performed
+
+
+## Executive Summary
+This report is aimed to predict the manner in which people did the weight lifting exercise based on provided data set. We use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. In this report, we will build a prediction model using random forest, run cross validation, provide the expected out of sample error, and then use the final model to predict a test data set having 20 test cases. The prediction correction rate on the test set is 100%. The data set used comes from this source: http://groupware.les.inf.puc-rio.br/har.
+
+
+## Data Processing
+
+### 1. Load data
+First load the train and test data set and explore data.
+
+```{r}
+train <- read.csv("pml-training.csv", header=TRUE, na.strings="NA")
+test <- read.csv("pml-testing.csv", header=TRUE, na.strings="NA")
+dim(train)
+dim(test)
+```
+
+### 2. Pre-processing data
+
+Remove columns populated mostly with "", NULL and columns that are not good predictors such as X, user_name, timestamp and new_window.
+
+```{r}
+colRemoveList <- grep("^X|user_name|timestamp|new_window|kurtosis|skewness|max|min|amplitude|var|avg|stddev",colnames(train))
+train <- train[,-colRemoveList]
+test <- test[,-colRemoveList]
+dim(train)
+dim(test)
+```
+
+### 3. Split train data sets for training and validation
+```{r}
+library(AppliedPredictiveModeling)
+library(caret)
+set.seed(998)
+trainIndex = createDataPartition(train$classe,p=0.7,list=FALSE)
+training = train[trainIndex,]
+validating = train[-trainIndex,]
+```
+
+### 4. Train with Random Forest
+```{r}
+Sys.time()
+trCtrl = trainControl(method = "cv", number = 4)
+rf <- train(classe ~ ., data=training, method="rf", trControl=trCtrl)
+Sys.time()
+rf
+```
+
+
+### 5. Out of sample error for validating data set
+
+
+```{r}
+confusionMatrix(validating$classe, predict(rf,validating))
+predictedValue <- predict(rf, validating)
+1 - (sum(predictedValue == validating$classe) / nrow(validating))
+```
+The result shows the expected out of sample error is very low, less than 1%.
+
+### 6. Predict the test data
+```{r}
+answers <- predict(rf, newdata=test)
+answers
+```
+
+### 7. Generate files for submission
+```{r}
+pml_write_files <- function(x) {
+  n <- length(x)
+	for (i in 1:n) {
+		filename <- paste0("problem_id_", i,".txt")
+		write.table(x[i],file=filename,quote=FALSE,
+row.names=FALSE,col.names=FALSE)
+	}
+}
+pml_write_files(answers)
+
+```
+
+## Result
+
+After submitting the generated files to the course site, it shows all 20 test cases are correctly predicted. 
